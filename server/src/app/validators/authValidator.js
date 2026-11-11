@@ -33,11 +33,13 @@ export const validateRegister = [
         .isEmail().withMessage('Invalid email format')
         .normalizeEmail(),
 
-
     body('password')
         .notEmpty().withMessage('Password is required').bail()
         .isLength({ min: 8, max: 64 }).withMessage('Password must be between 8 and 64 characters long'),
 
+    body('role')
+        .optional()
+        .isIn(['customer', 'admin']).withMessage('Invalid role'),
     validate
 
 ]
