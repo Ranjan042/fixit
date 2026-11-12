@@ -20,8 +20,9 @@ export const register = async (req, res) => {
         const hashedPassword = await bcrypt.hash(password, 12);
 
         const user = await UserModel.create({
-            username,
             name,
+            email,
+            role,
             password: hashedPassword
         })
 
@@ -31,7 +32,7 @@ export const register = async (req, res) => {
         user.refreshTokenHash = hashToken(newRefreshToken);
         await user.save();
 
-        res.cookie("refreshToken", refreshToken, {
+        res.cookie("refreshToken", newRefreshToken, {
             httpOnly: true,
             secure: config.NODE_ENV === "production",
             sameSite: "strict",
@@ -63,7 +64,7 @@ export const login = async (req, res) => {
     try {
         const { email, password } = req.body;
 
-        const existingUser = await UserModel.findOne({ email });
+        const existingUser = await UserModel.findOne({ email }).select("+password");;
 
         if (!existingUser) {
             return res.status(404).json({
@@ -85,9 +86,9 @@ export const login = async (req, res) => {
         const newRefreshToken = generateRefreshToken(existingUser._id)
 
         existingUser.refreshTokenHash = hashToken(newRefreshToken);
-        await user.save();
+        await existingUser.save();
 
-        res.cookie("refreshToken",refreshToken,{
+        res.cookie("refreshToken",newRefreshToken,{
             httpOnly:true,
             secure:config.NODE_ENV === "production",
             sameSite: "strict"
@@ -105,3 +106,4 @@ export const login = async (req, res) => {
         })
     }
 }
+
