@@ -25,10 +25,10 @@ export const register = async (req, res) => {
             password: hashedPassword
         })
 
-        const accessToken = generateAccessToken(user._id)
-        const refreshToken = generateRefreshToken(user._id)
+        const newAccessToken = generateAccessToken(user._id)
+        const newRefreshToken = generateRefreshToken(user._id)
 
-        user.refreshToken = refreshToken;
+        user.refreshTokenHash = hashToken(newRefreshToken);
         await user.save();
 
         res.cookie("refreshToken", refreshToken, {
@@ -42,7 +42,7 @@ export const register = async (req, res) => {
         return res.status(201).json({
             suceess: true,
             message: "User registered successfully",
-            accessToken,
+            accessToken:newAccessToken,
             user: {
                 id: user._id,
                 username: user.username,
@@ -59,3 +59,49 @@ export const register = async (req, res) => {
     }
 }
 
+export const login = async (req, res) => {
+    try {
+        const { email, password } = req.body;
+
+        const existingUser = await UserModel.findOne({ email });
+
+        if (!existingUser) {
+            return res.status(404).json({
+                success: false,
+                message: "User not found"
+            })
+        }
+
+        const isPasswordValid = await bcrypt.compare(password,existingUser.password);
+
+        if(!isPasswordValid){
+            return res.status(401).json({
+                success:"false",
+                message:"Invalid credientals"
+            })
+        }
+
+        const newAccessToken = generateAccessToken(existingUser._id)
+        const newRefreshToken = generateRefreshToken(existingUser._id)
+
+        existingUser.refreshTokenHash = hashToken(newRefreshToken);
+        await user.save();
+
+        res.cookie("refreshToken",refreshToken,{
+            httpOnly:true,
+            secure:config.NODE_ENV === "production",
+            sameSite: "strict"
+        })
+
+        return res.status(201).json({
+            success:"true",
+            message:"User logged-in successfully",
+            accessToken:newAccessToken
+        })
+    } catch (error) {
+        return res.status(500).json({
+            success:"false",
+            message:error.message
+        })
+    }
+}
