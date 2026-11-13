@@ -40,6 +40,7 @@ const userSchema = new mongoose.Schema(
         refreshTokenHash:{
             type:String,
             default:null,
+            select:false
         }
     },
     {
