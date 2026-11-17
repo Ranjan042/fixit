@@ -1,12 +1,15 @@
 import jwt from "jsonwebtoken"
 import crypto from "crypto"
 import config from "../config/config.js"
-import { decode } from "punycode"
 
 
-export const generateAccessToken = (userId) => {
+
+export const generateAccessToken = (userId, sessionId) => {
     return jwt.sign(
-        { sub: userId.toString() },
+        {
+            sub: userId.toString(),
+            sid: sessionId
+        },
         config.ACCESS_TOKEN_SECRET,
         {
             expiresIn: config.ACCESS_TOKEN_EXPIRY
@@ -29,9 +32,12 @@ export const verifyAccessToken = (token) => {
     }
 }
 
-export const generateRefreshToken = (userId) => {
+export const generateRefreshToken = (userId, sessionId) => {
     return jwt.sign(
-        { sub: userId.toString() },
+        {
+            sub: userId.toString(),
+            sid: sessionId
+        },
         config.REFRESH_TOKEN_SECRET,
         {
             expiresIn: config.REFRESH_TOKEN_EXPIRY
