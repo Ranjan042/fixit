@@ -27,24 +27,9 @@ export const register = async (req, res) => {
             password: hashedPassword
         })
 
-        const newAccessToken = generateAccessToken(user._id)
-        const newRefreshToken = generateRefreshToken(user._id)
-
-        user.refreshTokenHash = hashToken(newRefreshToken);
-        await user.save();
-
-        res.cookie("refreshToken", newRefreshToken, {
-            httpOnly: true,
-            secure: config.NODE_ENV === "production",
-            sameSite: "strict",
-            maxAge: 7 * 24 * 60 * 60 * 1000
-
-        })
-
         return res.status(201).json({
             suceess: true,
             message: "User registered successfully",
-            accessToken: newAccessToken,
             user: {
                 id: user._id,
                 username: user.username,
@@ -54,9 +39,11 @@ export const register = async (req, res) => {
 
 
     } catch (error) {
+        devLog("Register error: ",error.message)
         return res.status(500).json({
             success: false,
-            message: error.message
+            message: "Internal server error"
+
         });
     }
 }
