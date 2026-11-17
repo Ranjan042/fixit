@@ -27,3 +27,7 @@ const sessionSchema = new mongoose.Schema({
         timestamps: true
     }
 )
+
+const sessionModel = mongoose.model("session",sessionSchema)
+
+export default sessionModel
