@@ -1,7 +1,7 @@
 import bcrypt from "bcryptjs"
 import UserModel from "../models/userModel.js";
+import sessionModel from "../models/sessionModel.js";
 import config from "../config/config.js";
-
 import { generateAccessToken, generateRefreshToken, hashToken, verifyRefreshToken } from "../utils/tokenUtils.js";
 import { devLog } from "../loger/devloger.js";
 
@@ -52,48 +52,70 @@ export const login = async (req, res) => {
     try {
         const { email, password } = req.body;
 
-        const existingUser = await UserModel.findOne({ email }).select("+password");;
+        const existingUser = await UserModel.findOne({ email }).select("+password");
 
         if (!existingUser) {
-            return res.status(404).json({
+            return res.status(401).json({
                 success: false,
-                message: "User not found"
-            })
+                message: "Invalid credentials"
+            });
         }
-
-        const isPasswordValid = await bcrypt.compare(password, existingUser.password);
+        const isPasswordValid = await bcrypt.compare(
+            password,
+            existingUser.password
+        );
 
         if (!isPasswordValid) {
             return res.status(401).json({
                 success: false,
-                message: "Invalid credientals"
-            })
+                message: "Invalid credentials"
+            });
         }
 
-        const newAccessToken = generateAccessToken(existingUser._id)
-        const newRefreshToken = generateRefreshToken(existingUser._id)
+        const sessionId = new mongoose.Types.ObjectId();
+        const newAccessToken = generateAccessToken(existingUser._id,sessionId);
+        const newRefreshToken = generateRefreshToken(existingUser._id,sessionId);
+       
+        const expiresAt = new Date(
+            Date.now() + 7 * 24 * 60 * 60 * 1000
+        );
 
-        existingUser.refreshTokenHash = hashToken(newRefreshToken);
-        await existingUser.save();
+        await sessionModel.create({
+            _id:sessionId,
+            userId: existingUser._id,
+            refreshTokenHash: hashToken(newRefreshToken),
+            device: req.headers["user-agent"] || "Unknown",
+            expiresAt
+        });
 
+   
         res.cookie("refreshToken", newRefreshToken, {
             httpOnly: true,
             secure: config.NODE_ENV === "production",
-            sameSite: "strict"
-        })
+            sameSite: "strict",
+            maxAge: 7 * 24 * 60 * 60 * 1000,
+            path: "/"
+        });
 
-        return res.status(201).json({
+
+        return res.status(200).json({
             success: true,
-            message: "User logged-in successfully",
-            accessToken: newAccessToken
-        })
+            message: "User logged in successfully",
+            accessToken: newAccessToken,
+            user: {
+                id: existingUser._id,
+                name: existingUser.name,
+                email: existingUser.email
+            }
+        });
+
     } catch (error) {
         return res.status(500).json({
             success: false,
-            message: error.message
-        })
+            message: "Internal server error"
+        });
     }
-}
+};
 
 export const me = async (req, res) => {
     try {
