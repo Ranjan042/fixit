@@ -2,7 +2,7 @@ import bcrypt from "bcryptjs"
 import UserModel from "../models/userModel.js";
 import config from "../config/config.js";
 
-import { generateAccessToken, generateRefreshToken, hashToken } from "../utils/tokenUtils.js";
+import { generateAccessToken, generateRefreshToken, hashToken, verifyRefreshToken } from "../utils/tokenUtils.js";
 import { devLog } from "../loger/devloger.js";
 
 export const register = async (req, res) => {
@@ -108,7 +108,6 @@ export const login = async (req, res) => {
     }
 }
 
-
 export const me = async (req, res) => {
     try {
         const userId = req.user.sub;
@@ -146,6 +145,59 @@ export const me = async (req, res) => {
     }
 };
 
-export const refresh = async (req, res) => {
-    
+export const refreshToken = async (req, res) => {
+    try {
+        const refreshToken = req.cookies?.refreshToken;
+
+        if (!refreshToken) {
+            return res.status(401).json({
+                success: false,
+                message: "Refresh token missing"
+            });
+        }
+
+        const result = verifyRefreshToken(refreshToken);
+
+        if (!result.success) {
+            return res.status(401).json({
+                success: false,
+                message: "Invalid or expired refresh token"
+            })
+        }
+
+        const user = await UserModel.findById(result.decoded.sub).select("+refreshTokenHash")
+
+        const incomingTokenHash = hashToken(refreshToken);
+
+        if (!user || user.refreshTokenHash !== incomingTokenHash) {
+            return res.status(401).json({
+                success: false,
+                message: "Invalid refresh token"
+            });
+        }
+
+        const newAccessToken = GenerateAccessToken(user._id);
+        const newRefreshToken = GenerateRefreshToken(user._id);
+
+        user.refreshTokenHash = hashToken(newRefreshToken);
+        await user.save();
+
+        res.cookie("refreshToken", newRefreshToken, {
+            httpOnly: true,
+            secure: process.env.NODE_ENV === "production",
+            sameSite: "strict",
+            maxAge: 7 * 24 * 60 * 60 * 1000
+        });
+
+        return res.status(200).json({
+            success: true,
+            message: "Token refreshed successfully",
+            accessToken: newAccessToken
+        });
+    } catch (error) {
+        return res.status(401).json({
+            success: false,
+            message: "Invalid or expired refresh token"
+        });
+    }
 }

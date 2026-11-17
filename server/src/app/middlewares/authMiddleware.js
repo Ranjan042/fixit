@@ -14,7 +14,7 @@ export const identifyUser = async (req, res, next) => {
 
         const result = verifyAccessToken(accessToken);
 
-        devLog("result: ", result)
+        devLog("Result: ", result)
 
         if (!result.success) {
             return res.status(401).json({
